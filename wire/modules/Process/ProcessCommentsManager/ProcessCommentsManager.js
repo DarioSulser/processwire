@@ -7,8 +7,10 @@ $(document).ready(function() {
 		return false;
 	});
 
-	$('.WireTabs').css('opacity', 1.0); 
-	$('.WireTabs a.on').parent('li').click();
+	var $tabs = $('.WireTabs');
+	$tabs.css('opacity', 1.0); 
+	$tabs.find('.uk-active').removeClass('uk-active');
+	$tabs.find('a.on').parent('li').click().addClass('uk-active');
 
 	$("a.CommentTextEdit").click(function() {
 		var $textarea = $("<textarea></textarea>");
@@ -101,7 +103,8 @@ $(document).ready(function() {
 					$(this).find(".CommentDownvotes > input").val(0).change();
 				} else {
 					// status
-					$(this).find(".CommentStatus > input[value='" + val + "']").click();
+					// $(this).find(".CommentStatus > input[value='" + val + "']").click(); // radios
+					$(this).find("select.CommentStatus").val(val); // select
 				}
 			});
 			$checkedItems.effect('highlight', 500);

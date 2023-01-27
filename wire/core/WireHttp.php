@@ -666,7 +666,6 @@ class WireHttp extends Wire {
 		$timeout = isset($options['timeout']) ? (float) $options['timeout'] : $this->getTimeout();
 		$postMethods = array('POST', 'PUT', 'DELETE', 'PATCH'); // methods for CURLOPT_POSTFIELDS
 		$isPost = in_array($method, $postMethods);
-		$contentType = isset($this->headers['content-type']) ? $this->headers['content-type'] : '';
 		$proxy = '';
 		
 		if(!empty($options['proxy'])) {
@@ -695,11 +694,20 @@ class WireHttp extends Wire {
 			// not reachable: version blocked before sendCURL call
 		}
 		
+		if($method === 'POST' && empty($this->headers['expect'])) {
+			// The 'expect' header that CURL uses waits for server to respond that the POST is okay,
+			// but many servers don't implement this, or ignore it, so we disable it here.
+			$this->headers['expect'] = '';
+		}
+		
 		if(count($this->headers)) {
-			if($isPost && !empty($this->data) && $contentType === self::defaultPostContentType) {
+			/* kept for temporary reference:
+			if($isPost && !empty($this->data) && $this->>headers['content-type'] === self::defaultPostContentType) {
 				// CURL does not work w/default POST content-type when sending POST variables array
+				// if setting array (rather than query string) for CURLOPT_POSTFIELDS
 				$this->headers['content-type'] = 'multipart/form-data; charset=utf-8';
 			}
+			*/
 			$headers = array();
 			foreach($this->headers as $name => $value) {
 				$headers[] = "$name: $value";
@@ -722,7 +730,9 @@ class WireHttp extends Wire {
 	
 		if(!empty($this->data)) {
 			if($isPost) {
-				curl_setopt($curl, CURLOPT_POSTFIELDS, $this->data);
+				// setting data as associative array adds a boundary to the content-type header that we don’t
+				// want so we set value as query string from http_build_query rather than associative array
+				curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($this->data));
 			} else {
 				$content = http_build_query($this->data);
 				if(strlen($content)) $url .= (strpos($url, '?') === false ? '?' : '&') . $content;
@@ -773,15 +783,21 @@ class WireHttp extends Wire {
 				curl_setopt($curl, $opt, $optVal); 
 			}
 		}
+
+		// Enables it to work on URLs that set cookies then redirect
+		// such as: https://galesupport.com/novelGeo/novelGeoLink.php?loc=nysl_ca_sar&amp;db=AONE
+		// $tempDir = $this->wire()->files->tempDir();
+		// $this->cookiePath = $tempDir->get();
+		// curl_setopt($curl, CURLOPT_COOKIEJAR, $this->cookiePath);
 		
 		$result = curl_exec($curl);
 
 		if($result === false) {
 			$this->error[] = curl_error($curl);
-			$this->httpCode = 0;
+			$this->setHttpCode(0, '');
 		} else {
 			$this->setResponseHeaderValues($responseHeaders);
-			$this->httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+			$this->setHttpCode(curl_getinfo($curl, CURLINFO_HTTP_CODE)); 
 		}
 		
 		curl_close($curl);
@@ -893,7 +909,7 @@ class WireHttp extends Wire {
 	 * 
 	 * @param string $fromURL URL of file you want to download.
 	 * @param string $toFile Filename you want to save it to (including full path).
-	 * @param array $options Optional aptions array for PHP's stream_context_create(), plus these optional options: 
+	 * @param array $options Optional options array for PHP's stream_context_create(), plus these optional options: 
 	 * 	- `use` or `useMethod` (string): Specify "curl", "fopen" or "socket" to force a specific method (default=auto-detect).
 	 * 	- `timeout` (float): Number of seconds till timeout.
 	 * @return string Filename that was downloaded (including full path).
@@ -1027,7 +1043,9 @@ class WireHttp extends Wire {
 		}
 		
 		$result = curl_exec($curl);
-		if($result) $this->httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+		if($result) {
+			$this->setHttpCode(curl_getinfo($curl, CURLINFO_HTTP_CODE));
+		}
 
 		if($result === false) $this->error[] = curl_error($curl);
 		curl_close($curl);
@@ -1342,9 +1360,8 @@ class WireHttp extends Wire {
 			$httpCode = (int) $httpCode;
 			if(strlen($httpText)) $httpText = preg_replace('/[^-_.;() a-zA-Z0-9]/', ' ', $httpText); 
 		}
-		
-		$this->httpCode = (int) $httpCode;
-		$this->httpCodeText = $httpText; 
+	
+		$this->setHttpCode((int) $httpCode, $httpText);
 		
 		if($this->httpCode >= 400 && isset($this->httpCodes[$this->httpCode])) {
 			$this->error[] = $this->httpCodes[$this->httpCode];
@@ -1745,6 +1762,7 @@ class WireHttp extends Wire {
 		$this->responseHeader = array();
 		$this->responseHeaders = array();
 		$this->httpCode = 0;
+		$this->httpCodeText = '';
 		$this->error = array();
 	}
 
@@ -1790,6 +1808,25 @@ class WireHttp extends Wire {
 	public function getHttpCode($withText = false) {
 		if($withText) return "$this->httpCode $this->httpCodeText";
 		return $this->httpCode; 
+	}
+
+	/**
+	 * Set http response code and text (internal use)
+	 * 
+	 * This is public only in case a hook wants to modify an http response value, 
+	 * for instance translating one http code to another for some purpose. If used
+	 * by a hook, it should be called after the WireHttp::send() method.
+	 * 
+	 * #pw-internal
+	 * 
+	 * @param int $code
+	 * @param string $text
+	 * 
+	 */
+	public function setHttpCode($code, $text = '') {
+		if(empty($text)) $text = isset($this->httpCodes[$code]) ? $this->httpCodes[$code] : '?';
+		$this->httpCode = $code;
+		$this->httpCodeText = $text;
 	}
 
 	/**

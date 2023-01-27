@@ -97,7 +97,7 @@ function InputfieldRepeater($) {
 				$checkbox.prop('checked', false);
 				$header.removeClass('ui-state-error').addClass('ui-state-default');
 				//if($parent.is('.InputfieldStateCollapsed')) $parent.toggleClass('InputfieldStateCollapsed', 100);
-				$item.removeClass('InputfieldRepeaterDeletePending');
+				$item.removeClass('InputfieldRepeaterDeletePending').trigger('repeaterundelete');
 			} else {
 				// $checkbox.attr('checked', 'checked'); // JQM
 				$checkbox.prop('checked', true);
@@ -106,7 +106,7 @@ function InputfieldRepeater($) {
 					$header.find('.toggle-icon').click();
 					//$item.toggleClass('InputfieldStateCollapsed', 100);
 				}
-				$item.addClass('InputfieldRepeaterDeletePending');
+				$item.addClass('InputfieldRepeaterDeletePending').trigger('repeaterdelete'); 
 				$item.closest('.Inputfield').addClass('InputfieldStateChanged');
 			}
 			$header.find('.InputfieldRepeaterItemControls').css('background-color', $header.css('background-color'));
@@ -1090,9 +1090,11 @@ function InputfieldRepeater($) {
 				});
 
 				// TinyMCE instances don't like to be dragged, so we disable them temporarily
+				/*
 				ui.item.find('.InputfieldTinyMCE textarea').each(function() {
 					tinyMCE.execCommand('mceRemoveControl', false, $(this).attr('id'));
 				});
+				*/
 			
 				if(familyFriendly && maxDepth > 0) {
 					// remember and hide depth children
@@ -1140,11 +1142,17 @@ function InputfieldRepeater($) {
 				});
 
 				// Re-enable the TinyMCE instances
+				/*
 				ui.item.find('.InputfieldTinyMCE textarea').each(function() {
 					tinyMCE.execCommand('mceAddControl', false, $(this).attr('id'));
 				});
+				 */
 				
 				$(this).closest('.InputfieldRepeater').trigger('sorted', [ ui.item ]);
+			},
+			
+			update: function(e, ui) {
+				$inputfieldRepeater.addClass('InputfieldStateChanged');
 			}
 		};
 

@@ -286,7 +286,7 @@ var Inputfields = {
 		}
 
 		// if ajax loaded, force InputfieldStates() click handler to open this one
-		if(isCollapsed && isAjax) {
+		if(isCollapsed && isAjax && !$inputfield.hasClass('InputfieldStateWasCollapsed')) {
 			$toggleIcon.click();
 			return $inputfield;
 		}
@@ -1353,7 +1353,7 @@ function InputfieldDependencies($target) {
 
 				// also allow for matching a "0" as an unchecked value, but only if there's isn't already an input with that value
 				if(($field.attr('type') == 'checkbox' || $field.attr('type') == 'radio') && !$field.is(":checked")) {
-					if($("#Inputfield_" + conditionField + "_0").length == 0) {
+					if($("#Inputfield_" + conditionField + "_0").length == 0 && $('#' + conditionField + '_0').length == 0) {
 						values[1] = '0';
 					}
 				}
@@ -2349,17 +2349,27 @@ function InputfieldReloadEvent(event, extraData) {
 	consoleLog('Inputfield reload: ' + fieldName);
 	$.get(url, function(data) {
 		var id = $t.attr('id');
-		var $content = jQuery(data).find("#" + id).children(".InputfieldContent");
-		if(!$content.length && id.indexOf('_repeater') > -1) {
-			id = 'wrap_Inputfield_' + fieldName;
+		var $content;
+		if(data.indexOf('{') === 0) {
+			data = JSON.parse(data);
+			console.log(data);
+			$content = '';
+		} else {
 			$content = jQuery(data).find("#" + id).children(".InputfieldContent");
-			if(!$content.length) {
-				console.log("Unable to find #" + $t.attr('id') + " in response from " + url);
+			if(!$content.length && id.indexOf('_repeater') > -1) {
+				id = 'wrap_Inputfield_' + fieldName;
+				$content = jQuery(data).find("#" + id).children(".InputfieldContent");
+				if(!$content.length) {
+					console.log("Unable to find #" + $t.attr('id') + " in response from " + url);
+				}
 			}
 		}
-		$t.children(".InputfieldContent").html($content.html());
-		// if(typeof jQuery.ui != 'undefined') $t.effect("highlight", 1000); 
-		$t.trigger('reloaded', [ 'reload' ]);
+		if($content.length) {
+			$t.children(".InputfieldContent").html($content.html());
+			//InputfieldStates($t);
+			InputfieldsInit($t);
+			$t.trigger('reloaded', ['reload']);
+		}
 	});
 	event.stopPropagation();
 }

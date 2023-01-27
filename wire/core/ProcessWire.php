@@ -17,7 +17,7 @@ require_once(__DIR__ . '/boot.php');
  * ~~~~~
  * #pw-body
  * 
- * ProcessWire 3.x, Copyright 2022 by Ryan Cramer
+ * ProcessWire 3.x, Copyright 2023 by Ryan Cramer
  * https://processwire.com
  *
  * Default API vars (A-Z) 
@@ -79,7 +79,7 @@ class ProcessWire extends Wire {
 	 * Reversion revision number
 	 * 
 	 */
-	const versionRevision = 200;
+	const versionRevision = 210;
 
 	/**
 	 * Version suffix string (when applicable)
@@ -279,6 +279,7 @@ class ProcessWire extends Wire {
  	 *
 	 */ 
 	public function __construct($config = null, $rootURL = '/') {
+		parent::__construct();
 	
 		if(empty($config)) $config = getcwd();
 		if(is_string($config)) $config = self::buildConfig($config, $rootURL);
@@ -472,7 +473,7 @@ class ProcessWire extends Wire {
 				// no whitelist available, so defer to server_name
 				$host .= $port; 
 
-			} else if(isset($_SERVER['HTTP_HOST']) && $host = $_SERVER['HTTP_HOST']) {
+			} else if(isset($_SERVER['HTTP_HOST'])) {
 				// fallback to sanitized http_host if server_name not available
 				// note that http_host already includes port if not 80
 				$host = $_SERVER['HTTP_HOST'];
